@@ -17,21 +17,15 @@ export function FileUpload({
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
+  const handleFiles = useCallback((newFiles: File[]) => {
+    const updatedFiles = [...files, ...newFiles].slice(0, maxFiles);
+    setFiles(updatedFiles);
+    onFilesSelected(updatedFiles);
+  }, [files, maxFiles, onFilesSelected]);
+
+  const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (acceptedFileTypes) {
       const filteredFiles = droppedFiles.filter(file =>
@@ -41,13 +35,17 @@ export function FileUpload({
     } else {
       handleFiles(droppedFiles);
     }
-  }, [acceptedFileTypes]);
+  }, [acceptedFileTypes, handleFiles]);
 
-  const handleFiles = useCallback((newFiles: File[]) => {
-    const updatedFiles = [...files, ...newFiles].slice(0, maxFiles);
-    setFiles(updatedFiles);
-    onFilesSelected(updatedFiles);
-  }, [files, maxFiles, onFilesSelected]);
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -73,7 +71,7 @@ export function FileUpload({
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
-        onDrop={handleDrop}
+        onDrop={onDrop}
       >
         <input
           type="file"

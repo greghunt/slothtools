@@ -21,6 +21,14 @@ import {
 
 const openai = createOpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY })
 
+interface ImageContent {
+  type: 'image';
+  image: string;
+  experimental_providerMetadata: {
+    openai: { imageDetail: 'low' };
+  };
+}
+
 export default function Home() {
   const [analysis, setAnalysis] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -76,7 +84,7 @@ export default function Home() {
                 experimental_providerMetadata: {
                   openai: { imageDetail: 'low' },
                 },
-              } as any )),
+              } as ImageContent)),
             ],
           },
         ],
