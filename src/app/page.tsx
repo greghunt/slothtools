@@ -3,8 +3,6 @@
 import Image from "next/image";
 import { FileUpload } from "@/components/file-upload";
 import { useState } from "react";
-import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
 import { Slider } from "@/components/ui/slider";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { Button } from "@/components/ui/button";
@@ -20,16 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const openai = createOpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
-
-interface ImageContent {
-  type: "image";
-  image: string;
-  experimental_providerMetadata: {
-    openai: { imageDetail: "low" };
-  };
-}
 
 export default function Home() {
   const [analysis, setAnalysis] = useState<string>("");
@@ -84,27 +72,22 @@ export default function Home() {
         selectedFiles.map((file) => fileToBase64(file))
       );
 
-      const { text } = await generateText({
-        model: openai("gpt-4o"),
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              ...base64Images.map(
-                (image) =>
-                  ({
-                    type: "image",
-                    image,
-                    experimental_providerMetadata: {
-                      openai: { imageDetail: "low" },
-                    },
-                  } as ImageContent)
-              ),
-            ],
-          },
-        ],
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          images: base64Images,
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate caption");
+      }
+
+      const { text } = await response.json();
       setAnalysis(text);
     } catch (error) {
       console.error("Error analyzing images:", error);
@@ -137,7 +120,7 @@ export default function Home() {
             </p>
           </div>
         </header>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 my-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
           <div>
             <Label>Use {wordLength} words</Label>
             <Slider
@@ -161,7 +144,12 @@ export default function Home() {
             />
           </div>
           <div>
-            <Select value={tone} onValueChange={(value) => setTone(value)}>
+            <Label htmlFor="tone">Choose your tone of voice</Label>
+            <Select
+              name="tone"
+              value={tone}
+              onValueChange={(value) => setTone(value)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Tone" />
               </SelectTrigger>
@@ -177,9 +165,13 @@ export default function Home() {
             </Select>
           </div>
           <div>
+            <Label htmlFor="seedText">
+              Briefly, what do you want the caption to be about?{" "}
+              <span className="text-muted-foreground">(optional)</span>
+            </Label>
             <Input
+              id="seedText"
               value={seedText}
-              placeholder="Briefly, what do you want the caption to be about? (optional)"
               onChange={(e) => setSeedText(e.target.value)}
             />
           </div>
@@ -187,7 +179,7 @@ export default function Home() {
             <FileUpload
               onFilesSelected={handleFilesSelected}
               maxFiles={5}
-              acceptedFileTypes={["image/"]}
+              acceptedFileTypes={["image/png", "image/jpeg", "image/jpg"]}
             />
           </div>
         </div>
@@ -195,7 +187,7 @@ export default function Home() {
         <div className="my-12">
           <Button
             onClick={generateCaption}
-            disabled={isAnalyzing || !tone}
+            disabled={isAnalyzing}
             className="w-full"
           >
             {isAnalyzing ? (
