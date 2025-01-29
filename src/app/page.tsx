@@ -1,101 +1,160 @@
+'use client';
+
 import Image from "next/image";
+import { FileUpload } from "@/components/file-upload";
+import { useState } from "react";
+import { generateText } from "ai";
+import { createOpenAI } from "@ai-sdk/openai"
+import { Slider } from "@/components/ui/slider"
+import { useCopyToClipboard } from "@uidotdev/usehooks";
+import { Button } from "@/components/ui/button";
+import { Check, Copy } from "lucide-react";
+import { Input } from "@/components/ui/input"
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+const openai = createOpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY })
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [analysis, setAnalysis] = useState<string>("");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [wordLength, setWordLength] = useState(100);
+  const [hashTagCount, setHashTagCount] = useState(5);
+  const [copiedText, copyToClipboard] = useCopyToClipboard();
+  const [tone, setTone] = useState<string>("");
+  const [seedText, setSeedText] = useState<string>("");
+  const hasCopiedText = Boolean(copiedText);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert file to base64'));
+        }
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+  
+  const prompt = `I will create an instagram post from these images. Please create a caption for the post. The caption should be ${wordLength} words long and include ${hashTagCount} hashtags. The tone of the caption should be ${tone}` + (seedText ? `\n\nThe caption should be about ${seedText}.` : "");
+
+  const handleFilesSelected = async (files: File[]) => {
+    try {
+      setIsAnalyzing(true);
+      setAnalysis("");
+
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      if (imageFiles.length === 0) {
+        setAnalysis("Please upload at least one image file.");
+        return;
+      }
+
+      const base64Images = await Promise.all(
+        imageFiles.map(file => fileToBase64(file))
+      );
+
+      const { text } = await generateText({
+        model: openai('gpt-4o'),
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              ...base64Images.map(image => ({
+                type: 'image',
+                image,
+                experimental_providerMetadata: {
+                  openai: { imageDetail: 'low' },
+                },
+              } as any )),
+            ],
+          },
+        ],
+      });
+      setAnalysis(text);
+    } catch (error) {
+      console.error('Error analyzing images:', error);
+      setAnalysis("An error occurred while analyzing the images. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-4 h-screen">
+      <Image
+        aria-hidden
+        src="/mascott.webp"
+        alt="Nerdy disco sloth"
+        width={256}
+        className="col-span-1 h-full object-cover w-full"
+        height={256}
+      />
+      <main className="col-span-3 p-12">
+        <h1 className="font-bold text-muted-foreground">Sloth Tools</h1>
+        <h2 className="text-2xl font-bold">Caption my Images</h2>
+        <div className="not-prose space-y-6">
+          <div>
+            <h3>Use {wordLength} words</h3>
+            <Slider defaultValue={[wordLength]} max={300} step={1} onValueChange={(value) => setWordLength(value[0])} />
+          </div>
+          <div>
+            <h3>{hashTagCount > 0 ? `Use ${hashTagCount} hashtags` : 'Don\'t use hashtags'}</h3>
+            <Slider defaultValue={[hashTagCount]} max={10} step={1} onValueChange={(value) => setHashTagCount(value[0])} />
+          </div>
+          <div>
+            <h3>Tone</h3>
+            <Select value={tone} onValueChange={(value) => setTone(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Tone" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="funny">Funny</SelectItem>
+                <SelectItem value="serious">Serious</SelectItem>
+                <SelectItem value="sarcastic">Sarcastic</SelectItem>
+                <SelectItem value="inspirational">Inspirational</SelectItem>
+                <SelectItem value="motivational">Motivational</SelectItem>
+                <SelectItem value="thoughtful">Thoughtful</SelectItem>
+                <SelectItem value="witty">Witty</SelectItem>
+                </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <h3>Briefly, what do you want the caption to be about? <small className="text-muted"></small>(optional)</h3>
+            <Input value={seedText} onChange={(e) => setSeedText(e.target.value)} />
+          </div>
+          <FileUpload
+            onFilesSelected={handleFilesSelected}
+            maxFiles={5}
+            acceptedFileTypes={["image/"]}
+          />
+          {isAnalyzing && (
+            <div className="text-gray-600">
+              Generating caption...
+            </div>
+          )}
+          {analysis && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-lg font-medium mb-2">Your snazzy caption</h3>
+              <div className="flex flex-row gap-2">
+                <Button onClick={() => copyToClipboard(analysis)}>            {hasCopiedText ? <Check /> : <Copy />}                  
+                </Button>
+                <p className="prose prose-slate lg:prose-xl">{analysis}</p>
+              </div>
+            </div>
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
