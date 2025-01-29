@@ -132,8 +132,8 @@ export default function Home() {
           <div>
             <h2 className="text-2xl font-bold">Caption my Images</h2>
             <p className="text-lg">
-              Don't know what to write for your Instagram post? Let Sloth Tools
-              help you out!
+              Don&apos;t know what to write for your Instagram post? Let Sloth
+              Tools help you out!
             </p>
           </div>
         </header>

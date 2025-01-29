@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useCallback, useEffect } from "react";
 import { Upload, X, Trash2 } from "lucide-react";
 
@@ -154,10 +155,12 @@ export function FileUpload({
               >
                 <div className="flex items-center gap-2">
                   {file.type.startsWith("image/") && file.preview && (
-                    <img
+                    <Image
                       src={file.preview}
                       alt={file.name}
                       className="w-8 h-8 object-cover rounded"
+                      width={32}
+                      height={32}
                     />
                   )}
                   <span className="text-sm text-gray-600 truncate">
