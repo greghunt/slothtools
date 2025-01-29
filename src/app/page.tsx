@@ -37,6 +37,7 @@ export default function Home() {
   const [copiedText, copyToClipboard] = useCopyToClipboard();
   const [tone, setTone] = useState<string>("");
   const [seedText, setSeedText] = useState<string>("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const hasCopiedText = Boolean(copiedText);
 
   const fileToBase64 = (file: File): Promise<string> => {
@@ -56,19 +57,27 @@ export default function Home() {
   
   const prompt = `I will create an instagram post from these images. Please create a caption for the post. The caption should be ${wordLength} words long and include ${hashTagCount} hashtags. The tone of the caption should be ${tone}` + (seedText ? `\n\nThe caption should be about ${seedText}.` : "");
 
-  const handleFilesSelected = async (files: File[]) => {
+  const handleFilesSelected = (files: File[]) => {
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      setAnalysis("Please upload at least one image file.");
+      return;
+    }
+    setSelectedFiles(imageFiles);
+  };
+
+  const generateCaption = async () => {
+    if (selectedFiles.length === 0) {
+      setAnalysis("Please upload at least one image file.");
+      return;
+    }
+
     try {
       setIsAnalyzing(true);
       setAnalysis("");
 
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-      if (imageFiles.length === 0) {
-        setAnalysis("Please upload at least one image file.");
-        return;
-      }
-
       const base64Images = await Promise.all(
-        imageFiles.map(file => fileToBase64(file))
+        selectedFiles.map(file => fileToBase64(file))
       );
 
       const { text } = await generateText({
@@ -146,16 +155,21 @@ export default function Home() {
             maxFiles={5}
             acceptedFileTypes={["image/"]}
           />
-          {isAnalyzing && (
-            <div className="text-gray-600">
-              Generating caption...
-            </div>
+          {selectedFiles.length > 0 && (
+            <Button 
+              onClick={generateCaption} 
+              disabled={isAnalyzing || !tone}
+              className="w-full"
+            >
+              {isAnalyzing ? "Generating caption..." : "Generate Caption"}
+            </Button>
           )}
           {analysis && (
             <div className="bg-gray-50 p-4 rounded-lg">
               <h3 className="text-lg font-medium mb-2">Your snazzy caption</h3>
               <div className="flex flex-row gap-2">
-                <Button onClick={() => copyToClipboard(analysis)}>            {hasCopiedText ? <Check /> : <Copy />}                  
+                <Button onClick={() => copyToClipboard(analysis)}>            
+                  {hasCopiedText ? <Check /> : <Copy />}                  
                 </Button>
                 <p className="prose prose-slate lg:prose-xl">{analysis}</p>
               </div>
