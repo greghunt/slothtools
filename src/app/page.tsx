@@ -120,7 +120,7 @@ export default function Home() {
             </p>
           </div>
         </header>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+        <div className="flex flex-col gap-6 my-6 md:grid md:grid-cols-2">
           <div>
             <Label>Use {wordLength} words</Label>
             <Slider
