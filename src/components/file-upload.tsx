@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useCallback, useEffect } from 'react';
-import { Upload, X, Trash2 } from 'lucide-react';
+import { useState, useCallback, useEffect } from "react";
+import { Upload, X, Trash2 } from "lucide-react";
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
@@ -21,17 +21,27 @@ export function FileUpload({
   const [dragActive, setDragActive] = useState(false);
   const [files, setFiles] = useState<FileWithPreview[]>([]);
 
-  // Create preview URLs for image files
-  useEffect(() => {
-    files.forEach(file => {
-      if (!file.preview && file.type.startsWith('image/')) {
-        file.preview = URL.createObjectURL(file);
-      }
-    });
+  const handleFiles = useCallback(
+    (newFiles: File[]) => {
+      const filesWithPreviews = newFiles.map((file) => {
+        if (file.type.startsWith("image/")) {
+          return Object.assign(file, {
+            preview: URL.createObjectURL(file),
+          });
+        }
+        return file;
+      });
+      const updatedFiles = [...files, ...filesWithPreviews].slice(0, maxFiles);
+      setFiles(updatedFiles);
+      onFilesSelected(updatedFiles);
+    },
+    [files, maxFiles, onFilesSelected]
+  );
 
-    // Cleanup preview URLs when component unmounts
+  // Only handle cleanup in useEffect now
+  useEffect(() => {
     return () => {
-      files.forEach(file => {
+      files.forEach((file) => {
         if (file.preview) {
           URL.revokeObjectURL(file.preview);
         }
@@ -39,30 +49,27 @@ export function FileUpload({
     };
   }, [files]);
 
-  const handleFiles = useCallback((newFiles: File[]) => {
-    const updatedFiles = [...files, ...newFiles].slice(0, maxFiles);
-    setFiles(updatedFiles);
-    onFilesSelected(updatedFiles);
-  }, [files, maxFiles, onFilesSelected]);
-
   const clearFiles = useCallback(() => {
     setFiles([]);
     onFilesSelected([]);
   }, [onFilesSelected]);
 
-  const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const droppedFiles = Array.from(e.dataTransfer.files);
-    if (acceptedFileTypes) {
-      const filteredFiles = droppedFiles.filter(file =>
-        acceptedFileTypes.some(type => file.type.includes(type))
-      );
-      handleFiles(filteredFiles);
-    } else {
-      handleFiles(droppedFiles);
-    }
-  }, [acceptedFileTypes, handleFiles]);
+  const onDrop = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      if (acceptedFileTypes) {
+        const filteredFiles = droppedFiles.filter((file) =>
+          acceptedFileTypes.some((type) => file.type.includes(type))
+        );
+        handleFiles(filteredFiles);
+      } else {
+        handleFiles(droppedFiles);
+      }
+    },
+    [acceptedFileTypes, handleFiles]
+  );
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -74,21 +81,27 @@ export function FileUpload({
     }
   }, []);
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const inputFiles = Array.from(e.target.files);
-      handleFiles(inputFiles);
-    }
-  }, [handleFiles]);
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+        const inputFiles = Array.from(e.target.files);
+        handleFiles(inputFiles);
+      }
+    },
+    [handleFiles]
+  );
 
-  const removeFile = useCallback((indexToRemove: number) => {
-    const updatedFiles = files.filter((_, index) => index !== indexToRemove);
-    setFiles(updatedFiles);
-    onFilesSelected(updatedFiles);
-  }, [files, onFilesSelected]);
+  const removeFile = useCallback(
+    (indexToRemove: number) => {
+      const updatedFiles = files.filter((_, index) => index !== indexToRemove);
+      setFiles(updatedFiles);
+      onFilesSelected(updatedFiles);
+    },
+    [files, onFilesSelected]
+  );
 
   return (
-    <div className="w-full">
+    <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
       <div
         className={`relative border-2 border-dashed rounded-lg p-8 text-center ${
           dragActive
@@ -107,7 +120,7 @@ export function FileUpload({
           onChange={handleFileInput}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
         />
-        <div className="flex flex-col items-center justify-center gap-2">
+        <div className="flex flex-col items-center justify-center gap-2 h-full">
           <Upload className="w-10 h-10 text-gray-400" />
           <p className="text-lg font-medium text-gray-600">
             Drag and drop files here, or click to select files
@@ -122,8 +135,8 @@ export function FileUpload({
       {files.length > 0 && (
         <div className="mt-4">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              {files.length} file{files.length === 1 ? '' : 's'} selected
+            <span className="text-sm font-bold text-gray-700">
+              {files.length} file{files.length === 1 ? "" : "s"} selected
             </span>
             <button
               onClick={clearFiles}
@@ -140,14 +153,16 @@ export function FileUpload({
                 className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
               >
                 <div className="flex items-center gap-2">
-                  {file.type.startsWith('image/') && file.preview && (
+                  {file.type.startsWith("image/") && file.preview && (
                     <img
                       src={file.preview}
                       alt={file.name}
                       className="w-8 h-8 object-cover rounded"
                     />
                   )}
-                  <span className="text-sm text-gray-600 truncate">{file.name}</span>
+                  <span className="text-sm text-gray-600 truncate">
+                    {file.name}
+                  </span>
                 </div>
                 <button
                   onClick={() => removeFile(index)}
@@ -162,4 +177,4 @@ export function FileUpload({
       )}
     </div>
   );
-} 
+}

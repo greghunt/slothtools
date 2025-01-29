@@ -1,15 +1,17 @@
-'use client';
+"use client";
 
 import Image from "next/image";
 import { FileUpload } from "@/components/file-upload";
 import { useState } from "react";
 import { generateText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai"
-import { Slider } from "@/components/ui/slider"
+import { createOpenAI } from "@ai-sdk/openai";
+import { Slider } from "@/components/ui/slider";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { Button } from "@/components/ui/button";
 import { Check, Copy } from "lucide-react";
-import { Input } from "@/components/ui/input"
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 import {
   Select,
@@ -17,15 +19,15 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
-const openai = createOpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY })
+const openai = createOpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY });
 
 interface ImageContent {
-  type: 'image';
+  type: "image";
   image: string;
   experimental_providerMetadata: {
-    openai: { imageDetail: 'low' };
+    openai: { imageDetail: "low" };
   };
 }
 
@@ -45,20 +47,22 @@ export default function Home() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
-        if (typeof reader.result === 'string') {
+        if (typeof reader.result === "string") {
           resolve(reader.result);
         } else {
-          reject(new Error('Failed to convert file to base64'));
+          reject(new Error("Failed to convert file to base64"));
         }
       };
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
   };
-  
-  const prompt = `I will create an instagram post from these images. Please create a caption for the post. The caption should be ${wordLength} words long and include ${hashTagCount} hashtags. The tone of the caption should be ${tone}` + (seedText ? `\n\nThe caption should be about ${seedText}.` : "");
+
+  const prompt =
+    `I will create an instagram post from these images. Please create a caption for the post. The caption should be ${wordLength} words long and include ${hashTagCount} hashtags. The tone of the caption should be ${tone}` +
+    (seedText ? `\n\nThe caption should be about ${seedText}.` : "");
 
   const handleFilesSelected = (files: File[]) => {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
     if (imageFiles.length === 0) {
       setAnalysis("Please upload at least one image file.");
       return;
@@ -77,31 +81,36 @@ export default function Home() {
       setAnalysis("");
 
       const base64Images = await Promise.all(
-        selectedFiles.map(file => fileToBase64(file))
+        selectedFiles.map((file) => fileToBase64(file))
       );
 
       const { text } = await generateText({
-        model: openai('gpt-4o'),
+        model: openai("gpt-4o"),
         messages: [
           {
-            role: 'user',
+            role: "user",
             content: [
-              { type: 'text', text: prompt },
-              ...base64Images.map(image => ({
-                type: 'image',
-                image,
-                experimental_providerMetadata: {
-                  openai: { imageDetail: 'low' },
-                },
-              } as ImageContent)),
+              { type: "text", text: prompt },
+              ...base64Images.map(
+                (image) =>
+                  ({
+                    type: "image",
+                    image,
+                    experimental_providerMetadata: {
+                      openai: { imageDetail: "low" },
+                    },
+                  } as ImageContent)
+              ),
             ],
           },
         ],
       });
       setAnalysis(text);
     } catch (error) {
-      console.error('Error analyzing images:', error);
-      setAnalysis("An error occurred while analyzing the images. Please try again.");
+      console.error("Error analyzing images:", error);
+      setAnalysis(
+        "An error occurred while analyzing the images. Please try again."
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -118,21 +127,42 @@ export default function Home() {
         height={256}
       />
       <main className="col-span-3 p-12">
-        <h1 className="font-bold text-muted-foreground">Sloth Tools</h1>
-        <h2 className="text-2xl font-bold">Caption my Images</h2>
-        <div className="not-prose space-y-6">
+        <header className="flex items-center gap-6">
+          <Image src="/favicon.svg" alt="Sloth Tools" width={64} height={64} />
           <div>
-            <h3>Use {wordLength} words</h3>
-            <Slider defaultValue={[wordLength]} max={300} step={1} onValueChange={(value) => setWordLength(value[0])} />
+            <h2 className="text-2xl font-bold">Caption my Images</h2>
+            <p className="text-lg">
+              Don't know what to write for your Instagram post? Let Sloth Tools
+              help you out!
+            </p>
+          </div>
+        </header>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 my-12">
+          <div>
+            <Label>Use {wordLength} words</Label>
+            <Slider
+              defaultValue={[wordLength]}
+              max={300}
+              step={1}
+              onValueChange={(value) => setWordLength(value[0])}
+            />
           </div>
           <div>
-            <h3>{hashTagCount > 0 ? `Use ${hashTagCount} hashtags` : 'Don\'t use hashtags'}</h3>
-            <Slider defaultValue={[hashTagCount]} max={10} step={1} onValueChange={(value) => setHashTagCount(value[0])} />
+            <Label>
+              {hashTagCount > 0
+                ? `Use ${hashTagCount} hashtags`
+                : "Don't use hashtags"}
+            </Label>
+            <Slider
+              defaultValue={[hashTagCount]}
+              max={10}
+              step={1}
+              onValueChange={(value) => setHashTagCount(value[0])}
+            />
           </div>
           <div>
-            <h3>Tone</h3>
             <Select value={tone} onValueChange={(value) => setTone(value)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger>
                 <SelectValue placeholder="Tone" />
               </SelectTrigger>
               <SelectContent>
@@ -143,36 +173,50 @@ export default function Home() {
                 <SelectItem value="motivational">Motivational</SelectItem>
                 <SelectItem value="thoughtful">Thoughtful</SelectItem>
                 <SelectItem value="witty">Witty</SelectItem>
-                </SelectContent>
+              </SelectContent>
             </Select>
           </div>
           <div>
-            <h3>Briefly, what do you want the caption to be about? <small className="text-muted"></small>(optional)</h3>
-            <Input value={seedText} onChange={(e) => setSeedText(e.target.value)} />
+            <Input
+              value={seedText}
+              placeholder="Briefly, what do you want the caption to be about? (optional)"
+              onChange={(e) => setSeedText(e.target.value)}
+            />
           </div>
-          <FileUpload
-            onFilesSelected={handleFilesSelected}
-            maxFiles={5}
-            acceptedFileTypes={["image/"]}
-          />
-          {selectedFiles.length > 0 && (
-            <Button 
-              onClick={generateCaption} 
-              disabled={isAnalyzing || !tone}
-              className="w-full"
-            >
-              {isAnalyzing ? "Generating caption..." : "Generate Caption"}
-            </Button>
-          )}
+          <div className="col-span-2">
+            <FileUpload
+              onFilesSelected={handleFilesSelected}
+              maxFiles={5}
+              acceptedFileTypes={["image/"]}
+            />
+          </div>
+        </div>
+
+        <div className="my-12">
+          <Button
+            onClick={generateCaption}
+            disabled={isAnalyzing || !tone}
+            className="w-full"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="animate-spin" /> Generating caption...
+              </>
+            ) : (
+              "Generate Caption"
+            )}
+          </Button>
           {analysis && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium mb-2">Your snazzy caption</h3>
-              <div className="flex flex-row gap-2">
-                <Button onClick={() => copyToClipboard(analysis)}>            
-                  {hasCopiedText ? <Check /> : <Copy />}                  
+            <div className="bg-background border-2 border-pink-500 p-4 rounded-lg my-8 shadow-lg">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="uppercase font-bold mb-2">
+                  Your snazzy caption
+                </h3>
+                <Button onClick={() => copyToClipboard(analysis)}>
+                  {hasCopiedText ? <Check /> : <Copy />}
                 </Button>
-                <p className="prose prose-slate lg:prose-xl">{analysis}</p>
               </div>
+              <p className="leading-relaxed text-lg">{analysis}</p>
             </div>
           )}
         </div>
