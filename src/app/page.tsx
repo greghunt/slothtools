@@ -99,13 +99,13 @@ export default function Home() {
   };
 
   return (
-    <div className="grid grid-cols-4 h-screen">
+    <div className="grid grid-cols-1 md:grid-cols-4 h-screen">
       <Image
         aria-hidden
         src="/mascott.webp"
         alt="Nerdy disco sloth"
         width={256}
-        className="col-span-1 h-full object-cover w-full"
+        className="col-span-1 h-72 md:h-full object-cover w-full"
         height={256}
       />
       <main className="col-span-3 p-12">
